@@ -1,0 +1,9 @@
+# Environment files
+.env
+
+# Oracle data volumes
+oracle-data/
+
+# Logs
+*.log
+
