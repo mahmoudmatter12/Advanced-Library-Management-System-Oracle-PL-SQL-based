@@ -38,18 +38,23 @@ This system implements a complete library management solution with the following
 ### Prerequisites for Oracle Image
 
 The Oracle Database 21c XE image requires:
+
 1. Oracle account (free registration at oracle.com)
 2. Accept license agreement for Oracle Database Express Edition
 3. Login to Oracle Container Registry:
+
    ```bash
    docker login container-registry.oracle.com
    ```
+
 4. Pull the image:
+
    ```bash
    docker pull container-registry.oracle.com/database/express:21.3.0-xe
    ```
 
 **Alternative**: Use community image (no login required):
+
 - Change image in `docker-compose.yml` to: `gvenzl/oracle-xe:21.3.0-slim`
 
 ### 1. Start Oracle Database Container
@@ -60,6 +65,7 @@ docker-compose up -d
 ```
 
 This will:
+
 - Pull Oracle Database 21c XE image (if not already present)
 - Start the database container
 - Create persistent volumes for data
@@ -101,24 +107,36 @@ docker-compose down -v
 
 - **Host**: `localhost`
 - **Port**: `1521`
-- **Service Name**: `XEPDB1`
+- **Service Name**: `XEPDB1` ⚠️ **Important**: Use Service Name, not SID
+- **Connection Type**: Basic
 - **Default Users**:
   - `SYSTEM` / `Oracle123` (or your ORACLE_PASSWORD)
   - `SYS` / `Oracle123` (as SYSDBA)
 
-### 1. DBeaver
+**Key Point**: Oracle 21c XE uses a pluggable database (PDB) with service name `XEPDB1`. Make sure your connection tool is set to use "Service Name" mode, not "SID" mode.
 
-1. Open DBeaver
+### 1. DBeaver / Oracle Connection Dialog
+
+1. Open DBeaver (or your Oracle client)
 2. Create New Connection → Oracle
-3. Enter connection details:
+3. In the connection dialog:
+   - **Connection Type**: Select "Basic" (radio button)
    - **Host**: `localhost`
    - **Port**: `1521`
-   - **Database/SID**: `XEPDB1`
+   - **Database**: `XEPDB1`
+   - **Important**: Click the dropdown next to Database field and select **"Service Name"** (not "SID")
+   - **Authentication**: Oracle Database Native
    - **Username**: `SYSTEM`
-   - **Password**: `Oracle123` (or from `.env` file)
-4. Test Connection → Finish
+   - **Role**: Normal
+   - **Password**: `Oracle123` (or your ORACLE_PASSWORD from `.env` file)
+   - **Save password**: Check if desired
+4. Click "Test Connection..." to verify
+5. Click "Finish" to save
+
+**Note**: For Oracle 21c XE in Docker, you must use **Service Name** = `XEPDB1`, not SID.
 
 **JDBC URL Format**:
+
 ```
 jdbc:oracle:thin:@localhost:1521/XEPDB1
 ```
@@ -152,6 +170,7 @@ docker exec -it oracle-library-db sqlplus SYSTEM/Oracle123@XEPDB1
 
 1. Install "Oracle Developer Tools" extension
 2. Add connection in settings:
+
    ```json
    {
      "oracle.connections": [{
@@ -231,16 +250,19 @@ db/
 ## Features
 
 ### Task 1: User Management and Privileges
+
 - Creates MANAGER, USER1, and USER2 users
 - Implements user creation logging procedure
 - Grants appropriate privileges to each user
 
 ### Task 2: Overdue Notifications
+
 - **Procedure**: `proc_send_overdue_notifications`
 - Identifies books overdue more than 7 days
 - Logs notifications to `notification_logs` table
 
 ### Task 3: Dynamic Late Fee Calculation
+
 - **Function**: `fn_calc_and_insert_penalty(p_borrowing_id)`
 - Calculates fees based on book type:
   - Regular books: $1 per day
@@ -248,6 +270,7 @@ db/
 - Automatically inserts penalty records
 
 ### Task 4: Borrowing Validation Trigger
+
 - **Trigger**: `trg_borrowing_validation`
 - Prevents borrowing if:
   - Student has 3 or more active books
@@ -256,35 +279,42 @@ db/
   - Book is already borrowed
 
 ### Task 5: Audit Trail
+
 - **Triggers**: `trg_borrowing_audit_update`, `trg_borrowing_audit_delete`
 - Logs all updates and deletes to `audit_trail` table
 - Captures old and new data as CLOB
 
 ### Task 6: Borrowing History Report
+
 - **Procedure**: `proc_borrowing_history(p_student_id)`
 - Uses cursor to retrieve complete borrowing history
 - Shows overdue status and associated penalties
 
 ### Task 7: Safe Return Process
+
 - **Procedure**: `proc_return_books(p_student_id, p_borrowing_ids)`
 - Handles multiple book returns in a single transaction
 - Calculates penalties automatically
 - Rolls back on any error
 
 ### Task 8: Books Availability Report
+
 - **Procedure**: `proc_books_availability_report`
 - Shows all books with current status
 - Displays borrower information and overdue days
 
 ### Task 9: Automated Suspension
+
 - **Procedure**: `proc_suspend_students(p_threshold)`
 - Automatically suspends students with unpaid penalties exceeding threshold (default $50)
 
 ### Task 10: Advanced Data Integrity
+
 - **Function**: `fn_total_currently_borrowed` - Returns count of currently borrowed books
 - **Trigger**: `trg_update_book_availability` - Auto-updates book availability on return
 
 ### Task 11 & 12: Blocking Detection (Bonus)
+
 - **View**: `v_blocking_sessions` - Shows blocking/waiting sessions
 - **Procedure**: `proc_identify_blockers` - Identifies and provides resolution commands
 
@@ -374,6 +404,7 @@ Run the comprehensive test suite:
 ```
 
 Or run individual tests from the test file. The test script verifies:
+
 - Schema creation
 - All procedures and functions
 - Trigger validations
@@ -386,11 +417,14 @@ Or run individual tests from the test file. The test script verifies:
 ### Database Won't Start
 
 1. Check if port 1521 is already in use:
+
    ```bash
    netstat -an | grep 1521
    ```
+
 2. Change port in `docker-compose.yml` if needed
 3. Check Docker logs:
+
    ```bash
    docker-compose logs oracle-db
    ```
@@ -398,14 +432,41 @@ Or run individual tests from the test file. The test script verifies:
 ### Connection Refused
 
 1. Verify container is running:
+
    ```bash
    docker-compose ps
    ```
+
 2. Wait for database initialization (2-3 minutes)
 3. Check if database is ready:
+
    ```bash
    docker exec -it oracle-library-db sqlplus SYSTEM/Oracle123@XEPDB1
    ```
+
+### Wrong Service Name / Connection Type
+
+If you get "ORA-12514: TNS:listener does not currently know of service requested":
+
+1. **Verify you're using Service Name, not SID**:
+   - In your connection dialog, ensure the dropdown next to Database field shows **"Service Name"** (not "SID")
+   - The value should be: `XEPDB1`
+
+2. **Alternative connection string format**:
+
+   ```
+   localhost:1521/XEPDB1
+   ```
+
+   (Note the `/` before XEPDB1, not `:`)
+
+3. **Verify service name is available**:
+
+   ```bash
+   docker exec -it oracle-library-db sqlplus SYSTEM/Oracle123@XEPDB1
+   ```
+
+   If this works, the service name is correct.
 
 ### Permission Denied Errors
 
@@ -458,4 +519,3 @@ ORACLE_HTTP_PORT=5500
 ## License
 
 This project is for educational purposes as part of the Advanced Database Systems course.
-
